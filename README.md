@@ -1,6 +1,6 @@
-# Date interval
+# queue-worker
 
-Date interval is a class for comfort using in dates calculating based on [ms](https://github.com/zelt/ms).
+RabbitMQ queue worker.
 
 ## How to use?
 
