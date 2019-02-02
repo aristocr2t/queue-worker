@@ -1,0 +1,43 @@
+{
+  "name": "queue-worker",
+  "version": "1.0.0",
+  "description": "RabbitMQ queue worker",
+  "main": "index.js",
+  "typings": "index.d.ts",
+  "scripts": {
+    "rebuild": "npm run clean && npm run build",
+    "build": "tsc --diagnostics",
+    "clean": "rm -rf dist node_modules/queue-worker",
+    "test": "npm run rebuild && cp -r dist node_modules/queue-worker && cd test && rm -rf dist && tsc --diagnostics && node dist/index.js"
+  },
+  "dependencies": {
+    "amqplib": "^0.5.3",
+    "events": "^3.0.0",
+    "ms": "^2.1.1",
+    "rabbit-queue": "^3.0.2"
+  },
+  "devDependencies": {
+    "@types/amqplib": "^0.5.9",
+    "@types/node": "^10.12.21",
+    "tslint": "^5.11.0",
+    "typescript": "^3.1.1"
+  },
+  "keywords": [
+    "rabbitmq",
+    "queue",
+    "worker"
+  ],
+  "author": {
+    "name": "Shamil Sultanov",
+    "email": "shamil.amirovich@gmail.com"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aristocr2t/queue-worker.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Aristocr2t/queue-worker/issues"
+  },
+  "homepage": "https://github.com/Aristocr2t/queue-worker#readme"
+}

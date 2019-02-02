@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": ".",
+    "declaration": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "lib": ["es6", "es7", "dom"],
+    "module": "commonjs",
+    "noImplicitAny": false,
+    "outDir": "dist",
+    "plugins": [{ "name": "tslint-language-service" }],
+    "rootDir": "src",
+    "sourceMap": true,
+    "suppressImplicitAnyIndexErrors": true,
+    "target": "es6",
+    "typeRoots": ["node_modules/@types"]
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "**/*.spec.ts"]
+}
