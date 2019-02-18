@@ -130,7 +130,7 @@ export class QueueWorker<T> {
       } catch (err) {
         this.freeJob(message.jobIndex);
         this.failCallbacks.map(this.callbackHandler(message, err));
-        message.errors.push(err);
+        message.errors.push(err.message || err);
         this.retryMessage(message);
       }
       ack(msg);
