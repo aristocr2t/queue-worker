@@ -25,7 +25,7 @@ export class QueueWorker<T> {
   static DEFAULT_OPTIONS = {
     jobsCount: 1,
     attemptCount: 5,
-    attemptDelays: ['10s', '1m']
+    attemptDelays: ['0s', '10s', '1m']
   };
 
   static ERROR_HANDLER: Function = console.error;
@@ -73,7 +73,11 @@ export class QueueWorker<T> {
       : QueueWorker.DEFAULT_OPTIONS.attemptDelays
     ).filter(v => MS_MASK.test(v));
     const jobIndex = this.getFreeJobIndex(true);
-    this.send(jobIndex, { jobIndex, attempt: 0, attemptCount, attemptDelays, content: data, errors: [] }).catch(QueueWorker.errorHandler);
+    this.send(
+      jobIndex,
+      { jobIndex, attempt: 0, attemptCount, attemptDelays, content: data, errors: [] },
+      { expiration: ms(attemptDelays[0] || '0s') }
+    ).catch(QueueWorker.errorHandler);
   }
 
   private getFreeJobIndex(addBusy: boolean = false): number {
@@ -162,7 +166,7 @@ export class QueueWorker<T> {
   private retryMessage(message: WorkerMessage<T>): void {
     message.attempt++;
     if (message.attempt <= message.attemptCount) {
-      const delay = message.attemptDelays[message.attempt - 1] || message.attemptDelays[message.attemptDelays.length - 1];
+      const delay = message.attemptDelays[message.attempt] || message.attemptDelays[message.attemptDelays.length - 1];
       const i = this.getFreeJobIndex(true);
       message.jobIndex = i;
       this.send(i, message, { expiration: ms(delay) }).catch(QueueWorker.errorHandler);
