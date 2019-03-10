@@ -54,7 +54,7 @@ export class QueueWorker<T> {
     }
     this.rabbit = rabbit;
     this.queue = queue;
-    if (typeof options === 'object' && options !== null) Object.assign(this.options, options);
+    if (typeof options === 'object' && options !== null) this.options = Object.assign({}, this.options, options);
     this.options.attemptDelays = (this.options.attemptDelays instanceof Array
       ? this.options.attemptDelays
       : QueueWorker.DEFAULT_OPTIONS.attemptDelays
@@ -67,20 +67,21 @@ export class QueueWorker<T> {
 
   addItem(data: T, options?: WorkerOptions): void {
     options = typeof options === 'object' && options !== null ? options : this.options;
+    const jobIndex = this.getFreeJobIndex(true);
+    const attempt = 0;
     const attemptCount = options.attemptCount;
     const attemptDelays = (options.attemptDelays instanceof Array
       ? options.attemptDelays
       : QueueWorker.DEFAULT_OPTIONS.attemptDelays
     ).filter(v => MS_MASK.test(v));
-    const jobIndex = this.getFreeJobIndex(true);
     this.send(
       jobIndex,
-      { jobIndex, attempt: 0, attemptCount, attemptDelays, content: data, errors: [] },
-      { expiration: ms(attemptDelays[0] || '0s') }
+      { jobIndex, attempt, attemptCount, attemptDelays, content: data, errors: [] },
+      { expiration: ms(attemptDelays[attempt] || '0s') }
     ).catch(QueueWorker.errorHandler);
   }
 
-  private getFreeJobIndex(addBusy: boolean = false): number {
+  private getFreeJobIndex(setAsBusy: boolean = false): number {
     let index: number,
       min = Infinity;
     for (let i = 0; i < this.activeJobs.length; i++) {
@@ -89,7 +90,7 @@ export class QueueWorker<T> {
         index = i;
       }
     }
-    if (addBusy) this.activeJobs[index]++;
+    if (setAsBusy) this.activeJobs[index]++;
     return index;
   }
 
