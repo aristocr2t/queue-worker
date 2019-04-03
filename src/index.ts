@@ -78,7 +78,7 @@ export class QueueWorker<T> {
       jobIndex,
       { jobIndex, attempt, attemptCount, attemptDelays, content: data, errors: [] },
       { expiration: ms(attemptDelays[attempt] || '0s') }
-    ).catch(QueueWorker.errorHandler);
+    ).catch(err => QueueWorker.errorHandler(err));
   }
 
   private getFreeJobIndex(setAsBusy: boolean = false): number {
@@ -144,7 +144,7 @@ export class QueueWorker<T> {
       for (let i = 0; i < this.options.jobsCount; i++) {
         await this.rabbit.subscribe(this.queueName(i), handler);
       }
-    })(handler).catch(QueueWorker.errorHandler);
+    })(handler).catch(err => QueueWorker.errorHandler(err));
   }
 
   private freeJob(index: number): void {
@@ -160,7 +160,7 @@ export class QueueWorker<T> {
         if (value instanceof Promise) {
           value = await value;
         }
-      })(message, result).catch(QueueWorker.errorHandler);
+      })(message, result).catch(err => QueueWorker.errorHandler(err));
     };
   }
 
@@ -170,7 +170,7 @@ export class QueueWorker<T> {
       const delay = message.attemptDelays[message.attempt] || message.attemptDelays[message.attemptDelays.length - 1];
       const i = this.getFreeJobIndex(true);
       message.jobIndex = i;
-      this.send(i, message, { expiration: ms(delay) }).catch(QueueWorker.errorHandler);
+      this.send(i, message, { expiration: ms(delay) }).catch(err => QueueWorker.errorHandler(err));
     } else {
       this.errorCallbacks.map(this.callbackHandler(message, message.errors));
     }
