@@ -1,6 +1,6 @@
 {
   "name": "queue-worker",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "description": "RabbitMQ queue worker",
   "main": "index.js",
   "typings": "index.d.ts",
@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "amqplib": "^0.5.3",
+    "cluster": "^0.7.7",
     "events": "^3.0.0",
     "ms": "^2.1.1",
     "rabbit-queue": "^3.0.2"
@@ -29,7 +30,8 @@
   ],
   "author": {
     "name": "Shamil Sultanov",
-    "email": "shamil.amirovich@gmail.com"
+    "email": "shamil.amirovich@gmail.com",
+    "url": "https://aristocr2t.ru/"
   },
   "license": "MIT",
   "repository": {

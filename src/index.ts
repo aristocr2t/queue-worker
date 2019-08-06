@@ -1,4 +1,5 @@
 import * as amqp from 'amqplib';
+import * as cluster from 'cluster';
 import { EventEmitter } from 'events';
 import * as ms from 'ms';
 import { Rabbit } from 'rabbit-queue';
@@ -10,6 +11,7 @@ export interface WorkerOptions {
 }
 
 export type WorkerMessage<T> = {
+  clusterId: number;
   jobIndex: number;
   attempt: number;
   attemptCount: number;
@@ -22,22 +24,23 @@ export type WorkerMessage<T> = {
 const MS_MASK = /^((?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|weeks?|w|years?|yrs?|y)?$/i;
 
 export class QueueWorker<T> {
-  static DEFAULT_OPTIONS = {
+  static readonly DEFAULT_OPTIONS = {
     jobsCount: 1,
     attemptCount: 5,
-    attemptDelays: ['0s', '10s', '1m']
+    attemptDelays: ['0s', '10s', '1m'],
   };
 
-  static ERROR_HANDLER: Function = console.error;
+  static readonly ERROR_HANDLER: Function = console.error;
 
-  private rabbit: Rabbit;
-  private queue: string;
-  private options: WorkerOptions = QueueWorker.DEFAULT_OPTIONS;
+  private readonly rabbit: Rabbit;
+  private readonly queue: string;
+  private readonly options: WorkerOptions = QueueWorker.DEFAULT_OPTIONS;
 
-  private errorCallbacks: Function[] = [];
-  private failCallbacks: Function[] = [];
-  private successCallbacks: Function[] = [];
-  private activeJobs: number[] = [];
+  private readonly errorCallbacks: Function[] = [];
+  private readonly failCallbacks: Function[] = [];
+  private readonly successCallbacks: Function[] = [];
+  private readonly activeJobs: number[] = [];
+  private readonly clusterId: number;
 
   private static errorHandler(err: any): void {
     if (this.ERROR_HANDLER instanceof Function) {
@@ -46,6 +49,7 @@ export class QueueWorker<T> {
   }
 
   constructor(rabbit: Rabbit, queue: string, options?: WorkerOptions) {
+    this.clusterId = cluster.isWorker ? cluster.worker.id : 0;
     if (!(rabbit instanceof EventEmitter)) {
       throw new Error('Rabbit must be instance of EventEmitter');
     }
@@ -76,8 +80,8 @@ export class QueueWorker<T> {
     ).filter(v => MS_MASK.test(v));
     this.send(
       jobIndex,
-      { jobIndex, attempt, attemptCount, attemptDelays, content: data, errors: [] },
-      { expiration: ms(attemptDelays[attempt] || '0s') }
+      { clusterId: this.clusterId, jobIndex, attempt, attemptCount, attemptDelays, content: data, errors: [] },
+      { expiration: ms(attemptDelays[attempt] || '0s') },
     ).catch(err => QueueWorker.errorHandler(err));
   }
 
@@ -103,7 +107,7 @@ export class QueueWorker<T> {
     const args = [
       this.queueName(index),
       message,
-      { ...options, contentEncoding: 'utf8', contentType: 'application/json', persistent: true }
+      { ...options, contentEncoding: 'utf8', contentType: 'application/json', persistent: true },
     ];
     if (options.expiration) {
       await this.rabbit.publishWithDelay.apply(this.rabbit, args);
@@ -124,27 +128,32 @@ export class QueueWorker<T> {
     }
   }
 
-  handle(callbackFn: (data: T) => any): void {
-    const handler = async (msg: amqp.Message, ack: (reply: any) => any) => {
-      const message = JSON.parse(msg.content.toString()) as WorkerMessage<T>;
-      try {
-        let value = callbackFn(message.content);
-        if (value instanceof Promise) value = await value;
-        this.successCallbacks.map(this.callbackHandler(message, value));
-        this.freeJob(message.jobIndex);
-      } catch (err) {
-        this.freeJob(message.jobIndex);
-        this.failCallbacks.map(this.callbackHandler(message, err));
-        message.errors.push(err.message || err);
-        this.retryMessage(message);
-      }
+  private rabbitHandler(callbackFn: (data: T) => any): (msg: amqp.Message, ack: (reply: any) => any) => Promise<void> {
+    return async (msg: amqp.Message, ack: (reply: any) => any) => {
       ack(msg);
-    };
-    (async (handler: (msg: any, ack: (reply: any) => any) => Promise<void>) => {
-      for (let i = 0; i < this.options.jobsCount; i++) {
-        await this.rabbit.subscribe(this.queueName(i), handler);
+      const message = JSON.parse(msg.content.toString()) as WorkerMessage<T>;
+      if (this.clusterId === message.clusterId) {
+        try {
+          let value = callbackFn(message.content);
+          if (value instanceof Promise) value = await value;
+          this.successCallbacks.map(this.callbackHandler(message, value));
+          this.freeJob(message.jobIndex);
+        } catch (err) {
+          this.freeJob(message.jobIndex);
+          this.failCallbacks.map(this.callbackHandler(message, err));
+          message.errors.push(err.message || err);
+          this.retryMessage(message);
+        }
       }
-    })(handler).catch(err => QueueWorker.errorHandler(err));
+    };
+  }
+
+  handle(callbackFn: (data: T) => any): void {
+    (async () => {
+      for (let i = 0; i < this.options.jobsCount; i++) {
+        await this.rabbit.subscribe(this.queueName(i), this.rabbitHandler(callbackFn));
+      }
+    })().catch(err => QueueWorker.errorHandler(err));
   }
 
   private freeJob(index: number): void {
@@ -153,7 +162,7 @@ export class QueueWorker<T> {
     }
   }
 
-  private callbackHandler(message: WorkerMessage<T>, result?: any): (cb: Function, i: number) => void {
+  private callbackHandler(message: WorkerMessage<T>, result?: any): (cb: Function) => void {
     return (cb: Function) => {
       (async (message: WorkerMessage<T>, result?: any) => {
         let value = cb(this.queueName(message.jobIndex), message.content, result);
