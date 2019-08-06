@@ -5,6 +5,7 @@ import * as ms from 'ms';
 import { Rabbit } from 'rabbit-queue';
 
 export interface WorkerOptions {
+  useCluster?: boolean;
   jobsCount?: number;
   attemptCount?: number;
   attemptDelays?: string[];
@@ -25,6 +26,7 @@ const MS_MASK = /^((?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|mi
 
 export class QueueWorker<T> {
   static readonly DEFAULT_OPTIONS = {
+    useCluster: false,
     jobsCount: 1,
     attemptCount: 5,
     attemptDelays: ['0s', '10s', '1m'],
@@ -132,7 +134,7 @@ export class QueueWorker<T> {
     return async (msg: amqp.Message, ack: (reply: any) => any) => {
       ack(msg);
       const message = JSON.parse(msg.content.toString()) as WorkerMessage<T>;
-      if (this.clusterId === message.clusterId) {
+      if (!this.options.useCluster || this.clusterId === message.clusterId) {
         try {
           let value = callbackFn(message.content);
           if (value instanceof Promise) value = await value;
