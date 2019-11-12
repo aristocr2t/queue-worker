@@ -1,27 +1,28 @@
 {
   "name": "queue-worker",
-  "version": "1.1.1",
+  "version": "2.0.0",
   "description": "RabbitMQ queue worker",
   "main": "index.js",
   "typings": "index.d.ts",
   "scripts": {
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "rebuild": "npm run clean && npm run build",
     "build": "tsc --diagnostics",
-    "clean": "rm -rf dist node_modules/queue-worker",
-    "test": "npm run rebuild && cp -r dist node_modules/queue-worker && cd test && rm -rf dist && tsc --diagnostics && node dist/index.js"
+    "clean": "rm -rf dist node_modules/queue-worker"
   },
   "dependencies": {
-    "amqplib": "^0.5.3",
-    "cluster": "^0.7.7",
+    "amqplib": "^0.5.5",
     "events": "^3.0.0",
-    "ms": "^2.1.1",
-    "rabbit-queue": "^3.0.2"
+    "ms": "^2.1.2",
+    "rabbit-queue": "^4.3.0"
   },
   "devDependencies": {
-    "@types/amqplib": "^0.5.9",
-    "@types/node": "^10.12.21",
-    "tslint": "^5.11.0",
-    "typescript": "^3.1.1"
+    "@types/amqplib": "^0.5.13",
+    "@types/ms": "^0.7.31",
+    "@types/node": "^12.12.7",
+    "prettier": "^1.19.1",
+    "tslint": "^5.20.1",
+    "typescript": "^3.7.2"
   },
   "keywords": [
     "rabbitmq",
