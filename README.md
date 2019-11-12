@@ -10,9 +10,11 @@ RabbitMQ queue worker.
 ```typescript
 const rabbit = new Rabbit(URL, { scheduledPublish: true });
 
-export type Message = { message: string };
+type Message = { message: string };
+type Exception = { message: string } | string;
+type Result = { done: boolean };
 
-const worker = new QueueWorker<Message>(rabbit, 'test', {
+const worker = new QueueWorker<Message, Exception, Result>(rabbit, 'test', {
   jobsCount: 5,
   attemptsCount: 10, // set attempts count here
   attemptDelays: ['0', '2 min', '5 min'],
@@ -24,20 +26,21 @@ const worker = new QueueWorker<Message>(rabbit, 'test', {
 worker.handle(async ({ message }) => {
   // handle data
   console.log(`Hello ${message}`);
+  return { done: true };
 });
 
 // on success
-worker.on('success', (data: Message, result: any) => {
+worker.on('success', (data: Message, result: Result) => {
   // you can watch success result here
 });
 
 // on attempt fail
-worker.on('fail', (data: Message, error: any) => {
+worker.on('fail', (data: Message, error: Exception) => {
   // watch me die
 });
 
 // on attempts end
-worker.on('error', (data: Message, errors: any[]) => {
+worker.on('error', (data: Message, errors: Exception[]) => {
   // at the end of all attempts
 });
 
