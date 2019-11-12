@@ -135,6 +135,9 @@ export class QueueWorker<T, E = Error, R = any> {
     return `${this.queue}-${index}`;
   }
 
+  on(type: 'success', callbackFn: SuccessCallback<T, R>): void;
+  on(type: 'fail', callbackFn: FailCallback<T, E>): void;
+  on(type: 'error', callbackFn: ErrorCallback<T, E>): void;
   on(type: 'success' | 'fail' | 'error', callbackFn: SuccessCallback<T, R> | FailCallback<T, E> | ErrorCallback<T, E>): void {
     if (callbackFn instanceof Function) {
       if (type === 'success') {
