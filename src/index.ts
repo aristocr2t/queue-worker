@@ -150,13 +150,13 @@ export class QueueWorker<T, E = Error, R = any> {
     }
   }
 
-  private rabbitHandler(callbackFn: (data: T) => R): (msg: amqp.Message, ack: (reply: any) => any) => Promise<void> {
+  private rabbitHandler(callbackFn: (data: T) => R | PromiseLike<R>): (msg: amqp.Message, ack: (reply: any) => any) => Promise<void> {
     return async (msg: amqp.Message, ack: (reply: any) => any) => {
       const message = JSON.parse(msg.content.toString()) as WorkerMessage<T, E>;
       try {
         let value = callbackFn(message.content);
         if (value instanceof Promise) value = await value;
-        this.successCallbacks.map(this.callbackHandler(message, value));
+        this.successCallbacks.map(this.callbackHandler(message, value as R));
         this.freeJob(message.jobIndex);
       } catch (err) {
         this.freeJob(message.jobIndex);
@@ -168,7 +168,7 @@ export class QueueWorker<T, E = Error, R = any> {
     };
   }
 
-  handle(callbackFn: (data: T) => R): void {
+  handle(callbackFn: (data: T) => R | PromiseLike<R>): void {
     this.delay(callbackFn)
       .then(async ([callbackFn]) => {
         for (let i = 0; i < this.options.jobsCount; i++) {
