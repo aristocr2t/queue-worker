@@ -10,10 +10,15 @@ RabbitMQ queue worker.
 ```typescript
 const rabbit = new Rabbit(URL, { scheduledPublish: true });
 
-const worker = new QueueWorker<{ message: string }>(rabbit, 'test', {
+export type Message = { message: string };
+
+const worker = new QueueWorker<Message>(rabbit, 'test', {
   jobsCount: 5,
-  attemptCount: 10,
-  attemptDelays: ['1 min', '2 min', '5 min']
+  attemptsCount: 10, // set attempts count here
+  attemptDelays: ['0', '2 min', '5 min'],
+  // 1st attempt's trying to resolve now
+  // on fail 1st attempt, 2nd attempt will try to resolve after 2 minutes
+  // on fail 2nd attempt, all next attempts will try to resolve every 5 minutes
 });
 
 worker.handle(async ({ message }) => {
@@ -22,24 +27,37 @@ worker.handle(async ({ message }) => {
 });
 
 // on success
-worker.on('success', (queueName: string, data: { message: string }, result: any) => {});
+worker.on('success', (data: Message, result: any) => {
+  // you can watch success result here
+});
 
 // on attempt fail
-worker.on('fail', (queueName: string, data: { message: string }, error: any) => {
+worker.on('fail', (data: Message, error: any) => {
   // watch me die
 });
 
-// on ended attempts
-worker.on('error', (queueName: string, data: { message: string }, errors: any[]) => {});
+// on attempts end
+worker.on('error', (data: Message, errors: any[]) => {
+  // at the end of all attempts
+});
 
 worker.addItem({ message: 'world' });
+// or you can set non-default options for this message
+worker.addItem(
+  { message: 'world' },
+  {
+    attemptsCount: 0,
+    attemptDelays: ['10 min'],
+    // this item will be handled after 10 minutes without attempts
+  },
+);
 ```
 
 ## Main features
 
 1. Simple queue setup.
 2. Jobs (`jobsCount`).
-3. Attempts (`attemptCount`).
+3. Attempts (`attemptsCount`).
 4. Function of repeat on fail after some time (`attemptDelays[attemptNumber]`.
    If length of `attemptDelays` is <= current number of attempt then it uses last element of `attemptDelays`).
 
